@@ -1,0 +1,202 @@
+#!/usr/bin/env bash
+
+opencode_gcp_install_wrapper() {
+  cat >"$WRAPPER_PATH" <<'WRAPPER'
+#!/usr/bin/env bash
+set -euo pipefail
+
+CONFIG_ROOT="${OPENCODE_GCP_CONFIG_ROOT:-$HOME/.config/opencode-gcp}"
+PROFILE_DIR="${OPENCODE_GCP_PROFILE_DIR:-$CONFIG_ROOT/profiles}"
+PROFILE_FILE="${OPENCODE_GCP_PROFILE_FILE:-$PROFILE_DIR/developer-tools.env}"
+OPENCODE_ENV_FILE="${OPENCODE_GCP_OPENCODE_ENV_FILE:-$CONFIG_ROOT/opencode.env}"
+OPENCODE_CONFIG_DIR="${OPENCODE_CONFIG_DIR:-$HOME/.config/opencode}"
+OPENCODE_JSON_FILE="${OPENCODE_GCP_OPENCODE_JSON_FILE:-$OPENCODE_CONFIG_DIR/opencode.json}"
+FIXED_GCP_PROJECT="${OPENCODE_GCP_PROJECT_ID:-developer-tools-482502}"
+
+log() { printf "[INFO] %s\n" "$*"; }
+warn() { printf "[WARN] %s\n" "$*" >&2; }
+fail() { printf "[ERROR] %s\n" "$*" >&2; exit 1; }
+
+usage() {
+  cat <<USAGE
+Uso:
+  opencode-gcp [--] [argumentos de opencode]
+  opencode-gcp --doctor
+  opencode-gcp --show-config
+
+Notas:
+  - Existe un único opencode-gcp.
+  - Siempre usa el perfil de credenciales definido en developer-tools.env.
+
+Ejemplos:
+  opencode-gcp
+  opencode-gcp -- -m google/gemini-2.5-pro
+  opencode-gcp --doctor
+USAGE
+}
+
+ensure_cmd() {
+  local cmd="$1"
+  command -v "$cmd" >/dev/null 2>&1 || fail "No se encontró '$cmd'."
+}
+
+load_profile() {
+  [[ -f "$PROFILE_FILE" ]] || fail "No existe el perfil: $PROFILE_FILE"
+
+  set -a
+  # shellcheck disable=SC1090
+  . "$PROFILE_FILE"
+  set +a
+
+  : "${GOOGLE_CLOUD_PROJECT:?GOOGLE_CLOUD_PROJECT no está definido en $PROFILE_FILE}"
+  : "${VERTEX_LOCATION:=global}"
+
+  export GOOGLE_CLOUD_PROJECT
+  export VERTEX_LOCATION
+  export GOOGLE_VERTEX_PROJECT="${GOOGLE_VERTEX_PROJECT:-$GOOGLE_CLOUD_PROJECT}"
+  export GOOGLE_VERTEX_LOCATION="${GOOGLE_VERTEX_LOCATION:-$VERTEX_LOCATION}"
+}
+
+load_opencode_env() {
+  if [[ ! -f "$OPENCODE_ENV_FILE" ]]; then
+    warn "No existe $OPENCODE_ENV_FILE. Continúo con defaults."
+    return 0
+  fi
+
+  set -a
+  # shellcheck disable=SC1090
+  . "$OPENCODE_ENV_FILE"
+  set +a
+}
+
+activate_gcloud_configuration() {
+  if [[ -n "${GOOGLE_APPLICATION_CREDENTIALS:-}" ]]; then
+    log "GOOGLE_APPLICATION_CREDENTIALS detectado; se omite activación de gcloud."
+    return 0
+  fi
+
+  if ! command -v gcloud >/dev/null 2>&1; then
+    warn "gcloud no está instalado. Se omite activación de configuración."
+    return 0
+  fi
+
+  if [[ -n "${GCLOUD_CONFIGURATION:-}" ]] && gcloud config configurations describe "$GCLOUD_CONFIGURATION" >/dev/null 2>&1; then
+    gcloud config configurations activate "$GCLOUD_CONFIGURATION" >/dev/null
+    log "Configuración gcloud activada: $GCLOUD_CONFIGURATION"
+  fi
+
+  gcloud config set project "$GOOGLE_CLOUD_PROJECT" >/dev/null
+}
+
+check_auth() {
+  if [[ -n "${GOOGLE_APPLICATION_CREDENTIALS:-}" ]]; then
+    [[ -f "$GOOGLE_APPLICATION_CREDENTIALS" ]] || fail "No existe GOOGLE_APPLICATION_CREDENTIALS: $GOOGLE_APPLICATION_CREDENTIALS. Copia tu finerio key.json a esa ruta."
+    if grep -q 'replace-me' "$GOOGLE_APPLICATION_CREDENTIALS" 2>/dev/null; then
+      fail "GOOGLE_APPLICATION_CREDENTIALS apunta a un placeholder: $GOOGLE_APPLICATION_CREDENTIALS. Reemplaza con tu finerio key.json real."
+    fi
+    return 0
+  fi
+
+  if ! command -v gcloud >/dev/null 2>&1; then
+    fail "Sin GOOGLE_APPLICATION_CREDENTIALS y sin gcloud. Instala gcloud o define credenciales."
+  fi
+
+  if gcloud auth application-default print-access-token >/dev/null 2>&1; then
+    return 0
+  fi
+
+  warn "No hay credenciales ADC activas para este entorno."
+  warn "Ejecuta: gcloud auth application-default login"
+  exit 1
+}
+
+doctor() {
+  ensure_cmd opencode
+  load_profile
+  load_opencode_env
+  if [[ "$GOOGLE_CLOUD_PROJECT" != "$FIXED_GCP_PROJECT" ]]; then
+    warn "El perfil usa GOOGLE_CLOUD_PROJECT='$GOOGLE_CLOUD_PROJECT'. Se recomienda '$FIXED_GCP_PROJECT'."
+  fi
+  activate_gcloud_configuration
+  check_auth
+  log "Doctor OK (project: $GOOGLE_CLOUD_PROJECT, region: $VERTEX_LOCATION)."
+}
+
+show_config() {
+  load_profile
+  load_opencode_env
+  cat <<CFG
+PROFILE_FILE=$PROFILE_FILE
+OPENCODE_ENV_FILE=$OPENCODE_ENV_FILE
+OPENCODE_JSON_FILE=$OPENCODE_JSON_FILE
+GOOGLE_CLOUD_PROJECT=$GOOGLE_CLOUD_PROJECT
+VERTEX_LOCATION=$VERTEX_LOCATION
+GCLOUD_CONFIGURATION=${GCLOUD_CONFIGURATION:-}
+GOOGLE_APPLICATION_CREDENTIALS=${GOOGLE_APPLICATION_CREDENTIALS:-}
+OPENCODE_DEFAULT_MODEL=${OPENCODE_DEFAULT_MODEL:-}
+CFG
+}
+
+main() {
+  local run_doctor="false"
+  local run_show_config="false"
+  local -a opencode_args=()
+
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --help|-h)
+        usage
+        exit 0
+        ;;
+      --doctor)
+        run_doctor="true"
+        ;;
+      --show-config)
+        run_show_config="true"
+        ;;
+      --)
+        shift
+        opencode_args+=("$@")
+        break
+        ;;
+      *)
+        opencode_args+=("$1")
+        ;;
+    esac
+    shift
+  done
+
+  if [[ "$run_show_config" == "true" ]]; then
+    show_config
+    exit 0
+  fi
+
+  if [[ "$run_doctor" == "true" ]]; then
+    doctor
+    exit 0
+  fi
+
+  ensure_cmd opencode
+  load_profile
+  load_opencode_env
+
+  if [[ "$GOOGLE_CLOUD_PROJECT" != "$FIXED_GCP_PROJECT" ]]; then
+    warn "Perfil con GOOGLE_CLOUD_PROJECT='$GOOGLE_CLOUD_PROJECT'. Se esperaba '$FIXED_GCP_PROJECT'."
+  fi
+
+  activate_gcloud_configuration
+  check_auth
+
+  log "Iniciando OpenCode con credenciales del proyecto '$GOOGLE_CLOUD_PROJECT' ..."
+  if [[ ${#opencode_args[@]} -eq 0 ]]; then
+    exec opencode
+  fi
+  exec opencode "${opencode_args[@]}"
+}
+
+main "$@"
+WRAPPER
+
+  chmod +x "$WRAPPER_PATH"
+  opencode_gcp_log "Comando instalado: $WRAPPER_PATH"
+}
