@@ -93,6 +93,8 @@ opencode-gcp --show-config
 opencode-gcp
 ```
 
+`opencode-gcp` siempre usa la key activa `~/.config/opencode-gcp/credentials/active/finerio-key.json` y no depende de activar `gcloud`.
+
 ## Documentacion extra
 
 - `docs/README-OPERACION.md`

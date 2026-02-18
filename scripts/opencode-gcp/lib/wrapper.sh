@@ -8,6 +8,7 @@ set -euo pipefail
 CONFIG_ROOT="${OPENCODE_GCP_CONFIG_ROOT:-$HOME/.config/opencode-gcp}"
 PROFILE_DIR="${OPENCODE_GCP_PROFILE_DIR:-$CONFIG_ROOT/profiles}"
 PROFILE_FILE="${OPENCODE_GCP_PROFILE_FILE:-$PROFILE_DIR/developer-tools.env}"
+ACTIVE_KEY_PATH="${OPENCODE_GCP_ACTIVE_KEY_PATH:-$CONFIG_ROOT/credentials/active/finerio-key.json}"
 OPENCODE_ENV_FILE="${OPENCODE_GCP_OPENCODE_ENV_FILE:-$CONFIG_ROOT/opencode.env}"
 OPENCODE_CONFIG_DIR="${OPENCODE_CONFIG_DIR:-$HOME/.config/opencode}"
 OPENCODE_JSON_FILE="${OPENCODE_GCP_OPENCODE_JSON_FILE:-$OPENCODE_CONFIG_DIR/opencode.json}"
@@ -26,7 +27,7 @@ Uso:
 
 Notas:
   - Existe un único opencode-gcp.
-  - Siempre usa el perfil de credenciales definido en developer-tools.env.
+  - Siempre usa la key activa: credentials/active/finerio-key.json.
 
 Ejemplos:
   opencode-gcp
@@ -55,6 +56,7 @@ load_profile() {
   export VERTEX_LOCATION
   export GOOGLE_VERTEX_PROJECT="${GOOGLE_VERTEX_PROJECT:-$GOOGLE_CLOUD_PROJECT}"
   export GOOGLE_VERTEX_LOCATION="${GOOGLE_VERTEX_LOCATION:-$VERTEX_LOCATION}"
+  export GOOGLE_APPLICATION_CREDENTIALS="$ACTIVE_KEY_PATH"
 }
 
 load_opencode_env() {
@@ -70,44 +72,14 @@ load_opencode_env() {
 }
 
 activate_gcloud_configuration() {
-  if [[ -n "${GOOGLE_APPLICATION_CREDENTIALS:-}" ]]; then
-    log "GOOGLE_APPLICATION_CREDENTIALS detectado; se omite activación de gcloud."
-    return 0
-  fi
-
-  if ! command -v gcloud >/dev/null 2>&1; then
-    warn "gcloud no está instalado. Se omite activación de configuración."
-    return 0
-  fi
-
-  if [[ -n "${GCLOUD_CONFIGURATION:-}" ]] && gcloud config configurations describe "$GCLOUD_CONFIGURATION" >/dev/null 2>&1; then
-    gcloud config configurations activate "$GCLOUD_CONFIGURATION" >/dev/null
-    log "Configuración gcloud activada: $GCLOUD_CONFIGURATION"
-  fi
-
-  gcloud config set project "$GOOGLE_CLOUD_PROJECT" >/dev/null
+  log "Se usará credencial fija en '$GOOGLE_APPLICATION_CREDENTIALS'; se omite activación de gcloud."
 }
 
 check_auth() {
-  if [[ -n "${GOOGLE_APPLICATION_CREDENTIALS:-}" ]]; then
-    [[ -f "$GOOGLE_APPLICATION_CREDENTIALS" ]] || fail "No existe GOOGLE_APPLICATION_CREDENTIALS: $GOOGLE_APPLICATION_CREDENTIALS. Copia tu finerio key.json a esa ruta."
-    if grep -q 'replace-me' "$GOOGLE_APPLICATION_CREDENTIALS" 2>/dev/null; then
-      fail "GOOGLE_APPLICATION_CREDENTIALS apunta a un placeholder: $GOOGLE_APPLICATION_CREDENTIALS. Reemplaza con tu finerio key.json real."
-    fi
-    return 0
+  [[ -f "$GOOGLE_APPLICATION_CREDENTIALS" ]] || fail "No existe finerio key activa: $GOOGLE_APPLICATION_CREDENTIALS"
+  if grep -q 'replace-me' "$GOOGLE_APPLICATION_CREDENTIALS" 2>/dev/null; then
+    fail "La key activa es placeholder: $GOOGLE_APPLICATION_CREDENTIALS. Reemplaza con tu finerio key.json real."
   fi
-
-  if ! command -v gcloud >/dev/null 2>&1; then
-    fail "Sin GOOGLE_APPLICATION_CREDENTIALS y sin gcloud. Instala gcloud o define credenciales."
-  fi
-
-  if gcloud auth application-default print-access-token >/dev/null 2>&1; then
-    return 0
-  fi
-
-  warn "No hay credenciales ADC activas para este entorno."
-  warn "Ejecuta: gcloud auth application-default login"
-  exit 1
 }
 
 doctor() {
