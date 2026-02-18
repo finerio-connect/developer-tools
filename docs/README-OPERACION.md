@@ -1,23 +1,58 @@
-# Operacion diaria: OpenCode + GCP (perfil unico)
+# Operacion diaria: OpenCode + GCP
 
-Este setup usa un unico `opencode-gcp` con perfil fijo y config base unica.
+## 1) Cargar modulo (una sola vez en tu rc)
 
-## 1) Verificar estado
+En `~/.zshrc` o `~/.bashrc`:
 
 ```bash
-opencode-gcp --doctor
-opencode-gcp --show-config
+[[ -f "$HOME/.config/opencode-gcp/shell/gcp-tools.sh" ]] && source "$HOME/.config/opencode-gcp/shell/gcp-tools.sh"
 ```
 
-`--doctor` valida:
+Luego:
 
-- binario `opencode`
-- perfil `~/.config/opencode-gcp/profiles/developer-tools.env`
-- credencial activa `~/.config/opencode-gcp/credentials/active/finerio-key.json`
+```bash
+source ~/.zshrc   # o source ~/.bashrc
+```
 
-## 2) Catalogo de proyectos mapeados
+## 2) Activar proyecto
 
-Referencias reales (name -> project_id):
+```bash
+gcp-list
+use-gcp developer-tools
+use-gcp enrichment-dev
+use-gcp cortex-dev
+```
+
+`use-gcp` hace:
+
+- carga `~/.config/gcp-env/<name>.env`
+- exporta `PROJECT_ID`, `LOCATION`, `GOOGLE_APPLICATION_CREDENTIALS`
+- actualiza `gcloud config set project`
+- apunta `credentials/active/finerio-key.json` a la key del entorno
+- sincroniza `provider.finerio.options.project/location` en `opencode.json` (si hay `jq`)
+
+## 3) Dónde van las credenciales
+
+- Key activa usada por OpenCode:
+  - `~/.config/opencode-gcp/credentials/active/finerio-key.json`
+- Key por proyecto:
+  - `~/.config/opencode-gcp/credentials/projects/<mapped-project>/finerio-key.json`
+
+Ejemplo:
+
+```bash
+cp ./finerio-key.json ~/.config/opencode-gcp/credentials/projects/enrichment-dev/finerio-key.json
+use-gcp enrichment-dev
+```
+
+## 4) Validar OpenCode
+
+```bash
+opencode-gcp --show-config
+opencode-gcp --doctor
+```
+
+## 5) Proyectos mapeados
 
 - `multiclient-dev` -> `multiclient-dev`
 - `enrichment-dev` -> `enrichment-dev-485816`
@@ -29,72 +64,8 @@ Referencias reales (name -> project_id):
 - `pfm-dev` -> `pfm-dev-485816`
 - `cortex-prod` -> `cortex-prod-481416`
 
-El instalador también guarda este catálogo en:
+## 6) Troubleshooting
 
-- `~/.config/opencode-gcp/credentials/projects/projects-map.txt`
-
-## 3) Estandar para guardar keys
-
-Usa siempre esta estructura:
-
-- `~/.config/opencode-gcp/credentials/projects/<mapped-project>/finerio-key.json`
-
-Ejemplo:
-
-```bash
-cp ./finerio-key.json ~/.config/opencode-gcp/credentials/projects/pfm-dev/finerio-key.json
-```
-
-## 4) Activar una key para OpenCode
-
-OpenCode siempre usa una ruta activa unica:
-
-- `~/.config/opencode-gcp/credentials/active/finerio-key.json`
-
-Activacion recomendada (symlink):
-
-```bash
-ln -sfn ~/.config/opencode-gcp/credentials/projects/pfm-dev/finerio-key.json \
-  ~/.config/opencode-gcp/credentials/active/finerio-key.json
-```
-
-Alternativa (copia):
-
-```bash
-cp ~/.config/opencode-gcp/credentials/projects/pfm-dev/finerio-key.json \
-  ~/.config/opencode-gcp/credentials/active/finerio-key.json
-```
-
-## 5) Configuracion unica de OpenCode
-
-Archivo principal base:
-
-- `~/.config/opencode/opencode.json`
-
-Archivo de ajustes globales adicionales:
-
-- `~/.config/opencode-gcp/opencode.env`
-
-El `opencode.json` que crea el instalador incluye provider `finerio`, modelos `fast/deep`, tema `matrix` y MCP browser local.
-
-## 6) Ejecutar OpenCode
-
-```bash
-opencode-gcp
-opencode-gcp -- -m google/gemini-2.5-pro
-```
-
-## 7) Ajustes recomendados
-
-- Si cambia el proyecto Vertex, actualiza `provider.finerio.options.project` en `~/.config/opencode/opencode.json`.
-- Si cambia la region, actualiza `provider.finerio.options.location` en `~/.config/opencode/opencode.json`.
-- Si cambia la ruta del MCP browser, actualiza `mcp.browser.command` en `~/.config/opencode/opencode.json`.
-
-## 8) Troubleshooting rapido
-
-- Error `placeholder` en credenciales:
-  - Reemplaza `~/.config/opencode-gcp/credentials/active/finerio-key.json` con una key real.
-- Error `No existe GOOGLE_APPLICATION_CREDENTIALS`:
-  - Verifica que exista el archivo activo.
-- Error de permisos GCP:
-  - Verifica IAM del service account de esa key.
+- `Env file not found`: revisa `~/.config/gcp-env/<name>.env`
+- `Key file not found`: copia la key al path del entorno
+- `placeholder` en doctor: reemplaza `credentials/active/finerio-key.json` por key real

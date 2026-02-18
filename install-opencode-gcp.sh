@@ -14,6 +14,9 @@ ACTIVE_KEY_PATH="$CREDENTIALS_ACTIVE_DIR/finerio-key.json"
 OPENCODE_ENV_FILE="${OPENCODE_GCP_OPENCODE_ENV_FILE:-$CONFIG_ROOT/opencode.env}"
 OPENCODE_CONFIG_DIR="${OPENCODE_CONFIG_DIR:-$HOME/.config/opencode}"
 OPENCODE_JSON_FILE="${OPENCODE_GCP_OPENCODE_JSON_FILE:-$OPENCODE_CONFIG_DIR/opencode.json}"
+GCP_ENV_DIR="${OPENCODE_GCP_ENV_DIR:-$HOME/.config/gcp-env}"
+SHELL_MODULE_DIR="${OPENCODE_GCP_SHELL_MODULE_DIR:-$CONFIG_ROOT/shell}"
+SHELL_MODULE_FILE="$SHELL_MODULE_DIR/gcp-tools.sh"
 DEFAULT_REGION="${OPENCODE_GCP_DEFAULT_REGION:-global}"
 DEFAULT_VERTEX_PROJECT_ID="${OPENCODE_GCP_VERTEX_PROJECT_ID:-developer-tools-482502}"
 FIXED_GCP_PROJECT="${OPENCODE_GCP_PROJECT_ID:-$DEFAULT_VERTEX_PROJECT_ID}"
@@ -159,6 +162,155 @@ KEY_PLACEHOLDER
     chmod 600 "$ACTIVE_KEY_PATH"
     warn "Se creó placeholder en $ACTIVE_KEY_PATH. Reemplázalo con tu finerio key.json."
   fi
+}
+
+write_gcp_env_files() {
+  local region="$1"
+  local force="$2"
+  local idx
+  local project_key
+  local project_id
+  local env_file
+  local key_file
+
+  mkdir -p "$GCP_ENV_DIR"
+
+  for idx in "${!MAPPED_PROJECT_KEYS[@]}"; do
+    project_key="${MAPPED_PROJECT_KEYS[$idx]}"
+    project_id="${MAPPED_PROJECT_IDS[$idx]}"
+    env_file="$GCP_ENV_DIR/$project_key.env"
+    key_file="$CREDENTIALS_PROJECTS_DIR/$project_key/finerio-key.json"
+
+    if [[ -f "$env_file" && "$force" != "true" ]]; then
+      continue
+    fi
+
+    cat >"$env_file" <<ENVFILE
+# Auto-generado por install-opencode-gcp.sh
+PROJECT_KEY="$project_key"
+PROJECT_ID="$project_id"
+LOCATION="$region"
+GOOGLE_APPLICATION_CREDENTIALS="$key_file"
+ENVFILE
+    chmod 600 "$env_file"
+  done
+
+  log "Entornos GCP disponibles en: $GCP_ENV_DIR"
+}
+
+write_shell_module_if_missing() {
+  local force="$1"
+
+  mkdir -p "$SHELL_MODULE_DIR"
+
+  if [[ -f "$SHELL_MODULE_FILE" && "$force" != "true" ]]; then
+    log "Módulo shell existente: $SHELL_MODULE_FILE"
+    return 0
+  fi
+
+  cat >"$SHELL_MODULE_FILE" <<EOF
+#!/usr/bin/env bash
+# Módulo de utilidades GCP para cargar desde ~/.zshrc o ~/.bashrc
+
+: "\${OPENCODE_GCP_CONFIG_ROOT:=$CONFIG_ROOT}"
+: "\${OPENCODE_GCP_ENV_DIR:=$GCP_ENV_DIR}"
+: "\${OPENCODE_GCP_ACTIVE_KEY_PATH:=\${OPENCODE_GCP_CONFIG_ROOT}/credentials/active/finerio-key.json}"
+: "\${OPENCODE_GCP_OPENCODE_JSON_FILE:=$OPENCODE_JSON_FILE}"
+
+gcp-list() {
+  local env_file
+  local found=0
+  local name
+  local project_id
+
+  for env_file in "\$OPENCODE_GCP_ENV_DIR"/*.env; do
+    [[ -e "\$env_file" ]] || continue
+    found=1
+    name="\$(basename "\$env_file" .env)"
+    project_id="\$(grep '^PROJECT_ID=' "\$env_file" | head -n 1 | cut -d '=' -f 2- | tr -d '\"')"
+    printf "%s -> %s\n" "\$name" "\${project_id:-N/A}"
+  done
+
+  if [[ "\$found" -eq 0 ]]; then
+    echo "No hay env files en \$OPENCODE_GCP_ENV_DIR"
+  fi
+}
+
+use-gcp() {
+  local env_name="\$1"
+  local env_file
+  local tmp_json
+
+  if [[ -z "\$env_name" ]]; then
+    echo "Uso: use-gcp <mapped-project>"
+    gcp-list
+    return 1
+  fi
+
+  env_file="\$OPENCODE_GCP_ENV_DIR/\${env_name}.env"
+  if [[ ! -f "\$env_file" ]]; then
+    echo "Env file not found: \$env_file"
+    gcp-list
+    return 1
+  fi
+
+  set -a
+  # shellcheck disable=SC1090
+  . "\$env_file"
+  set +a
+
+  : "\${PROJECT_ID:?PROJECT_ID no está definido en \$env_file}"
+  : "\${LOCATION:=us-central1}"
+
+  export GOOGLE_CLOUD_PROJECT="\$PROJECT_ID"
+  export VERTEX_LOCATION="\$LOCATION"
+  export GOOGLE_VERTEX_PROJECT="\$PROJECT_ID"
+  export GOOGLE_VERTEX_LOCATION="\$LOCATION"
+
+  if [[ -n "\${GOOGLE_APPLICATION_CREDENTIALS:-}" ]]; then
+    if [[ ! -f "\$GOOGLE_APPLICATION_CREDENTIALS" ]]; then
+      echo "Key file not found: \$GOOGLE_APPLICATION_CREDENTIALS"
+      return 1
+    fi
+
+    mkdir -p "\$(dirname "\$OPENCODE_GCP_ACTIVE_KEY_PATH")"
+    ln -sfn "\$GOOGLE_APPLICATION_CREDENTIALS" "\$OPENCODE_GCP_ACTIVE_KEY_PATH"
+    export GOOGLE_APPLICATION_CREDENTIALS="\$OPENCODE_GCP_ACTIVE_KEY_PATH"
+  fi
+
+  if command -v gcloud >/dev/null 2>&1; then
+    gcloud config set project "\$PROJECT_ID" >/dev/null
+  fi
+
+  if [[ -f "\$OPENCODE_GCP_OPENCODE_JSON_FILE" ]] && command -v jq >/dev/null 2>&1; then
+    tmp_json="\$(mktemp "\${TMPDIR:-/tmp}/opencode-json.XXXXXX")"
+    if jq --arg project "\$PROJECT_ID" --arg location "\$LOCATION" \\
+      '.provider.finerio.options.project=\$project | .provider.finerio.options.location=\$location' \\
+      "\$OPENCODE_GCP_OPENCODE_JSON_FILE" >"\$tmp_json"; then
+      mv "\$tmp_json" "\$OPENCODE_GCP_OPENCODE_JSON_FILE"
+    else
+      rm -f "\$tmp_json"
+      echo "No se pudo actualizar opencode.json"
+      return 1
+    fi
+  fi
+
+  echo "GCP env active: \$env_name"
+  echo "  Project : \$PROJECT_ID"
+  echo "  Region  : \$LOCATION"
+  echo "  Key     : \${GOOGLE_APPLICATION_CREDENTIALS:-ADC}"
+}
+EOF
+
+  chmod +x "$SHELL_MODULE_FILE"
+  log "Módulo shell creado: $SHELL_MODULE_FILE"
+}
+
+print_shell_hook_hint() {
+  cat <<EOF
+Carga el módulo en ~/.zshrc o ~/.bashrc con:
+  [[ -f "$SHELL_MODULE_FILE" ]] && source "$SHELL_MODULE_FILE"
+EOF
 }
 
 write_opencode_env_if_missing() {
@@ -522,15 +674,19 @@ main() {
   mkdir -p "$PROFILE_DIR"
   mkdir -p "$WRAPPER_DIR"
   mkdir -p "$OPENCODE_CONFIG_DIR"
+  mkdir -p "$GCP_ENV_DIR"
+  mkdir -p "$SHELL_MODULE_DIR"
 
   install_opencode
   ensure_credentials_layout
+  write_gcp_env_files "$selected_region" "$force"
   write_profile_if_missing "$selected_region" "$force"
   write_opencode_env_if_missing
   write_opencode_json_if_missing "$selected_region" "$force"
   verify_project_access
 
   install_wrapper
+  write_shell_module_if_missing "$force"
   ensure_path_hint
 
   cat <<SUMMARY
@@ -554,10 +710,18 @@ Estructura estándar de credenciales:
   $CREDENTIALS_PROJECTS_DIR/projects-map.txt
   $ACTIVE_KEY_PATH   (ruta activa usada por opencode-gcp)
 
+Entornos para use-gcp:
+  $GCP_ENV_DIR/<mapped-project>.env
+
+Módulo shell:
+  $SHELL_MODULE_FILE
+
 Este setup usa credenciales de '$FIXED_GCP_PROJECT' para cualquier uso de opencode-gcp.
 Para activar un key.json, cópialo a:
   $ACTIVE_KEY_PATH
 SUMMARY
+
+  print_shell_hook_hint
 }
 
 main "$@"
