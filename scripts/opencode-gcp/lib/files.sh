@@ -213,6 +213,74 @@ use-gcp() {
   echo "  Region  : \$LOCATION"
   echo "  Key     : \${GOOGLE_APPLICATION_CREDENTIALS:-ADC}"
 }
+
+_opencode_gcp_env_names() {
+  local env_file
+  for env_file in "\$OPENCODE_GCP_ENV_DIR"/*.env; do
+    [[ -e "\$env_file" ]] || continue
+    basename "\$env_file" .env
+  done
+}
+
+_opencode_gcp_comp_use_gcp_zsh() {
+  local env_name
+  local -a envs
+  envs=()
+
+  while IFS= read -r env_name; do
+    [[ -n "\$env_name" ]] || continue
+    envs+=("\$env_name")
+  done < <(_opencode_gcp_env_names)
+
+  compadd -- "\${envs[@]}"
+}
+
+_opencode_gcp_comp_use_gcp_bash() {
+  local cur opts
+  cur="\${COMP_WORDS[COMP_CWORD]}"
+  opts="\$(_opencode_gcp_env_names | tr '\\n' ' ')"
+  COMPREPLY=( \$(compgen -W "\$opts" -- "\$cur") )
+}
+
+_opencode_gcp_enable_use_gcp_tab() {
+  if [[ -n "\${ZSH_VERSION:-}" ]]; then
+    typeset -f compdef >/dev/null 2>&1 || return 0
+    compdef _opencode_gcp_comp_use_gcp_zsh use-gcp 2>/dev/null || true
+    return 0
+  fi
+
+  if [[ -n "\${BASH_VERSION:-}" ]]; then
+    complete -F _opencode_gcp_comp_use_gcp_bash use-gcp 2>/dev/null || true
+  fi
+}
+
+_opencode_gcp_enable_postman_tab() {
+  local shell_name
+  local completion_script
+
+  command -v postman >/dev/null 2>&1 || return 0
+
+  if [[ -n "\${ZSH_VERSION:-}" ]]; then
+    shell_name="zsh"
+  elif [[ -n "\${BASH_VERSION:-}" ]]; then
+    shell_name="bash"
+  else
+    return 0
+  fi
+
+  if completion_script="\$(postman completion \"\$shell_name\" 2>/dev/null)"; then
+    [[ -n "\$completion_script" ]] && eval "\$completion_script"
+    return 0
+  fi
+
+  if completion_script="\$(postman completion --shell \"\$shell_name\" 2>/dev/null)"; then
+    [[ -n "\$completion_script" ]] && eval "\$completion_script"
+    return 0
+  fi
+}
+
+_opencode_gcp_enable_use_gcp_tab
+_opencode_gcp_enable_postman_tab
 MODULE
 
   chmod +x "$SHELL_MODULE_FILE"
@@ -283,8 +351,8 @@ opencode_gcp_write_opencode_json_if_missing() {
       },
       "models": {
         "finerio/fast": {
-          "name": "Gemini Fast",
-          "id": "gemini-2.5-flash",
+          "name": "Gemini 3.1 Pro",
+          "id": "gemini-3.1-pro-preview",
           "attachment": true,
           "tool_call": true,
           "limit": {
@@ -293,8 +361,8 @@ opencode_gcp_write_opencode_json_if_missing() {
           }
         },
         "finerio/deep": {
-          "name": "Gemini Pro",
-          "id": "gemini-2.5-pro",
+          "name": "Gemini 3.1 Flash",
+          "id": "gemini-3-flash-preview",
           "attachment": true,
           "tool_call": true,
           "limit": {

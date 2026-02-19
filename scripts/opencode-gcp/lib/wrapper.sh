@@ -24,10 +24,12 @@ Uso:
   opencode-gcp [--] [argumentos de opencode]
   opencode-gcp --doctor
   opencode-gcp --show-config
+  opencode-gcp --debug-credentials [--] [argumentos de opencode]
 
 Notas:
   - Existe un único opencode-gcp.
   - Siempre usa la key activa: credentials/active/finerio-key.json.
+  - --debug-credentials imprime credenciales en texto plano (solo para diagnóstico local).
 
 Ejemplos:
   opencode-gcp
@@ -82,6 +84,30 @@ check_auth() {
   fi
 }
 
+print_plain_credentials_debug() {
+  local debug_enabled="$1"
+
+  if [[ "$debug_enabled" != "true" ]]; then
+    return 0
+  fi
+
+  warn "DEBUG habilitado: se imprimirá información sensible en texto plano."
+  cat <<DEBUG_INFO
+----- BEGIN OPENCODE-GCP CREDENTIAL PAYLOAD (PLAINTEXT) -----
+GOOGLE_CLOUD_PROJECT=$GOOGLE_CLOUD_PROJECT
+VERTEX_LOCATION=$VERTEX_LOCATION
+GOOGLE_VERTEX_PROJECT=${GOOGLE_VERTEX_PROJECT:-}
+GOOGLE_VERTEX_LOCATION=${GOOGLE_VERTEX_LOCATION:-}
+GOOGLE_APPLICATION_CREDENTIALS=$GOOGLE_APPLICATION_CREDENTIALS
+----- BEGIN GOOGLE_APPLICATION_CREDENTIALS JSON -----
+DEBUG_INFO
+  cat "$GOOGLE_APPLICATION_CREDENTIALS"
+  cat <<DEBUG_INFO
+----- END GOOGLE_APPLICATION_CREDENTIALS JSON -----
+----- END OPENCODE-GCP CREDENTIAL PAYLOAD (PLAINTEXT) -----
+DEBUG_INFO
+}
+
 doctor() {
   ensure_cmd opencode
   load_profile
@@ -112,6 +138,7 @@ CFG
 main() {
   local run_doctor="false"
   local run_show_config="false"
+  local debug_credentials="${OPENCODE_GCP_DEBUG_CREDENTIALS:-false}"
   local -a opencode_args=()
 
   while [[ $# -gt 0 ]]; do
@@ -125,6 +152,9 @@ main() {
         ;;
       --show-config)
         run_show_config="true"
+        ;;
+      --debug-credentials)
+        debug_credentials="true"
         ;;
       --)
         shift
@@ -158,6 +188,7 @@ main() {
 
   activate_gcloud_configuration
   check_auth
+  print_plain_credentials_debug "$debug_credentials"
 
   log "Iniciando OpenCode con credenciales del proyecto '$GOOGLE_CLOUD_PROJECT' ..."
   if [[ ${#opencode_args[@]} -eq 0 ]]; then

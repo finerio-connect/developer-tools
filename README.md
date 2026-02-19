@@ -12,7 +12,8 @@ chmod +x install-opencode-gcp.sh
 Opciones:
 
 - `--region`: region por defecto para Vertex AI
-- `--force`: regenera perfil/config/modulo/envs (backup de `opencode.json`)
+- `--force`: regenera perfil/config/modulo/envs y `opencode.json` (full)
+- `--force-opencode-config`: regenera solo `opencode.json` (con backup)
 
 ## Estructura generada
 
@@ -94,6 +95,18 @@ opencode-gcp
 ```
 
 `opencode-gcp` siempre usa la key activa `~/.config/opencode-gcp/credentials/active/finerio-key.json` y no depende de activar `gcloud`.
+
+### Debug de credenciales (texto plano)
+
+Para inspeccionar exactamente qué payload de credenciales se exporta antes de invocar `opencode`:
+
+```bash
+opencode-gcp --debug-credentials -- --help
+# o
+OPENCODE_GCP_DEBUG_CREDENTIALS=true opencode-gcp -- --help
+```
+
+Esto imprime datos sensibles (incluyendo el JSON de `finerio-key.json`) en la terminal.
 
 ## Documentacion extra
 

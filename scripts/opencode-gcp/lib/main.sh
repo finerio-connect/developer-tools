@@ -1,8 +1,19 @@
 #!/usr/bin/env bash
 
 opencode_gcp_install_opencode() {
+  local opencode_bin=""
+
   if command -v opencode >/dev/null 2>&1; then
-    opencode_gcp_log "OpenCode ya está instalado en: $(command -v opencode)"
+    opencode_bin="$(command -v opencode)"
+  elif [[ -x "$HOME/.opencode/bin/opencode" ]]; then
+    opencode_bin="$HOME/.opencode/bin/opencode"
+  fi
+
+  if [[ -n "$opencode_bin" ]]; then
+    opencode_gcp_log "OpenCode ya está instalado en: $opencode_bin"
+    if [[ ":$PATH:" != *":$(dirname "$opencode_bin"):"* ]]; then
+      opencode_gcp_warn "OpenCode existe pero no está en PATH. Agrega: export PATH=\"$(dirname "$opencode_bin"):\$PATH\""
+    fi
     return 0
   fi
 
@@ -53,7 +64,9 @@ opencode_gcp_main() {
   opencode_gcp_init_defaults
 
   local selected_region="$DEFAULT_REGION"
-  local force="false"
+  local force_all="false"
+  local force_opencode_config="false"
+  local force_opencode_json="false"
 
   while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -67,7 +80,10 @@ opencode_gcp_main() {
         selected_region="$1"
         ;;
       --force)
-        force="true"
+        force_all="true"
+        ;;
+      --force-opencode-config)
+        force_opencode_config="true"
         ;;
       *)
         opencode_gcp_fail "Opción no soportada: $1 (usa --help)"
@@ -81,17 +97,20 @@ opencode_gcp_main() {
   opencode_gcp_ensure_cmd curl
 
   opencode_gcp_prepare_dirs
+  if [[ "$force_all" == "true" || "$force_opencode_config" == "true" ]]; then
+    force_opencode_json="true"
+  fi
 
   opencode_gcp_install_opencode
   opencode_gcp_ensure_credentials_layout
-  opencode_gcp_write_gcp_env_files "$selected_region" "$force"
-  opencode_gcp_write_profile_if_missing "$selected_region" "$force"
+  opencode_gcp_write_gcp_env_files "$selected_region" "$force_all"
+  opencode_gcp_write_profile_if_missing "$selected_region" "$force_all"
   opencode_gcp_write_opencode_env_if_missing
-  opencode_gcp_write_opencode_json_if_missing "$selected_region" "$force"
+  opencode_gcp_write_opencode_json_if_missing "$selected_region" "$force_opencode_json"
   opencode_gcp_verify_project_access
 
   opencode_gcp_install_wrapper
-  opencode_gcp_write_shell_module_if_missing "$force"
+  opencode_gcp_write_shell_module_if_missing "$force_all"
   opencode_gcp_ensure_path_hint
 
   opencode_gcp_print_summary

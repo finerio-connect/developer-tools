@@ -70,16 +70,19 @@ opencode_gcp_usage() {
 Instalador de OpenCode + credenciales GCP (modular, proyecto fijo configurable).
 
 Uso:
-  ./install-opencode-gcp.sh [--region REGION] [--force]
+  ./install-opencode-gcp.sh [--region REGION] [--force|--force-opencode-config]
   ./install-opencode-gcp.sh --help
 
 Opciones:
   --region   Región por defecto de Vertex AI (ej: global, us-central1)
-  --force    Reescribe perfil/config base (con backup de opencode.json)
+  --force    Reescribe perfil/envs/módulo shell y opencode.json (full)
+  --force-opencode-config
+             Reescribe solo opencode.json (con backup)
   --help     Muestra esta ayuda
 
 Ejemplos:
   curl -fsSL https://raw.githubusercontent.com/finerio-connect/developer-tools/main/install-opencode-gcp.sh | bash
+  curl -fsSL https://raw.githubusercontent.com/finerio-connect/developer-tools/main/install-opencode-gcp.sh | bash -s -- --force-opencode-config
   curl -fsSL https://raw.githubusercontent.com/finerio-connect/developer-tools/main/install-opencode-gcp.sh | bash -s -- --region us-central1 --force
 USAGE
 }
