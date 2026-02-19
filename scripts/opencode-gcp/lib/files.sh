@@ -307,6 +307,8 @@ opencode_gcp_write_opencode_env_if_missing() {
 # Ejemplos opcionales:
 # OPENCODE_DEFAULT_MODEL="google/gemini-2.5-pro"
 # OPENCODE_LOG_LEVEL="info"
+# OPENCODE_GCP_FINERIO_CONNECT_MCP_URL="https://docs.dev.finerioconnect.com/documentation/~gitbook/mcp"
+# OPENCODE_GCP_GITHUB_MCP_URL="https://api.githubcopilot.com/mcp/"
 ENVFILE
 
   chmod 600 "$OPENCODE_ENV_FILE"
@@ -343,6 +345,10 @@ opencode_gcp_write_opencode_json_if_missing() {
     "finerio-docs": {
       "type": "remote",
       "url": "$DEFAULT_MCP_FINERIO_CONNECT_URL"
+    },
+    "github": {
+      "type": "remote",
+      "url": "$DEFAULT_MCP_GITHUB_URL"
     }
   },
   "provider": {
