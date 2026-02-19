@@ -26,6 +26,7 @@ opencode_gcp_init_defaults() {
   FIXED_GCP_PROJECT="${OPENCODE_GCP_PROJECT_ID:-$DEFAULT_VERTEX_PROJECT_ID}"
 
   DEFAULT_MCP_BROWSER_PATH="${OPENCODE_GCP_BROWSER_MCP_PATH:-$HOME/workspace_projects/chrome-devtools-mcp/build/src/index.js}"
+  DEFAULT_MCP_FINERIO_CONNECT_URL="${OPENCODE_GCP_FINERIO_CONNECT_MCP_URL:-https://docs.dev.finerioconnect.com/documentation/~gitbook/mcp}"
 
   MAPPED_PROJECT_KEYS=(
     "multiclient-dev"

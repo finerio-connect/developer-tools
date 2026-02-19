@@ -339,6 +339,10 @@ opencode_gcp_write_opencode_json_if_missing() {
     "browser": {
       "type": "local",
       "command": ["node", "$DEFAULT_MCP_BROWSER_PATH"]
+    },
+    "finerio-docs": {
+      "type": "remote",
+      "url": "$DEFAULT_MCP_FINERIO_CONNECT_URL"
     }
   },
   "provider": {
@@ -350,7 +354,7 @@ opencode_gcp_write_opencode_json_if_missing() {
         "location": "$region"
       },
       "models": {
-        "finerio/fast": {
+        "finerio/gemini-3.1-pro": {
           "name": "Gemini 3.1 Pro",
           "id": "gemini-3.1-pro-preview",
           "attachment": true,
@@ -360,8 +364,8 @@ opencode_gcp_write_opencode_json_if_missing() {
             "output": 65536
           }
         },
-        "finerio/deep": {
-          "name": "Gemini 3.1 Flash",
+        "finerio/gemini-3-flash": {
+          "name": "Gemini 3 Flash",
           "id": "gemini-3-flash-preview",
           "attachment": true,
           "tool_call": true,
@@ -375,11 +379,11 @@ opencode_gcp_write_opencode_json_if_missing() {
   },
   "agent": {
     "Scraper Architect": {
-      "model": "finerio/finerio/deep",
+      "model": "finerio/gemini-3.1-pro",
       "prompt": "You are a Requirements Analyst specialized in web portals and automated scraping..."
     }
   },
-  "model": "finerio/finerio/deep"
+  "model": "finerio/gemini-3.1-pro"
 }
 JSON
 
