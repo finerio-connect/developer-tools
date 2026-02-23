@@ -349,6 +349,14 @@ opencode_gcp_write_opencode_json_if_missing() {
     "github": {
       "type": "remote",
       "url": "$DEFAULT_MCP_GITHUB_URL"
+    },
+    "pencil": {
+      "type": "local",
+      "command": [
+        "/Applications/Pencil.app/Contents/Resources/app.asar.unpacked/out/mcp-server-darwin-arm64",
+        "--app",
+        "desktop"
+      ]
     }
   },
   "provider": {
@@ -363,6 +371,16 @@ opencode_gcp_write_opencode_json_if_missing() {
         "finerio/gemini-3.1-pro": {
           "name": "Gemini 3.1 Pro",
           "id": "gemini-3.1-pro-preview",
+          "attachment": true,
+          "tool_call": true,
+          "limit": {
+            "context": 1000000,
+            "output": 65536
+          }
+        },
+        "finerio/gemini-3-pro-preview": {
+          "name": "Gemini 3 pro",
+          "id": "gemini-3-pro-preview",
           "attachment": true,
           "tool_call": true,
           "limit": {
