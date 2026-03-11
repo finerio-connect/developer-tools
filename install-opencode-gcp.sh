@@ -4,8 +4,16 @@ set -euo pipefail
 OPENCODE_GCP_MODULES=(
   "scripts/opencode-gcp/lib/common.sh"
   "scripts/opencode-gcp/lib/files.sh"
+  "scripts/opencode-gcp/lib/opencode-config.sh"
   "scripts/opencode-gcp/lib/wrapper.sh"
   "scripts/opencode-gcp/lib/main.sh"
+)
+
+OPENCODE_GCP_CONFIG_FILES=(
+  "scripts/opencode-gcp/config/base.json"
+  "scripts/opencode-gcp/config/mcp-servers.json"
+  "scripts/opencode-gcp/config/providers.json"
+  "scripts/opencode-gcp/config/agents.json"
 )
 OPENCODE_GCP_REMOTE_BOOTSTRAP="false"
 OPENCODE_GCP_INSTALL_ROOT=""
@@ -37,20 +45,29 @@ opencode_gcp_detect_local_root() {
   return 1
 }
 
+opencode_gcp_fetch_remote_files() {
+  local base_url="$1"
+  local target_root="$2"
+  shift 2
+  local file_path
+  local target_path
+
+  for file_path in "$@"; do
+    target_path="$target_root/$file_path"
+    mkdir -p "$(dirname "$target_path")"
+    curl -fsSL "${base_url%/}/$file_path" -o "$target_path" || \
+      opencode_gcp_bootstrap_fail "No se pudo descargar: ${base_url%/}/$file_path"
+  done
+}
+
 opencode_gcp_fetch_modules() {
   local base_url="$1"
   local target_root="$2"
-  local module_path
-  local target_path
 
   command -v curl >/dev/null 2>&1 || opencode_gcp_bootstrap_fail "curl es requerido para bootstrap remoto."
 
-  for module_path in "${OPENCODE_GCP_MODULES[@]}"; do
-    target_path="$target_root/$module_path"
-    mkdir -p "$(dirname "$target_path")"
-    curl -fsSL "${base_url%/}/$module_path" -o "$target_path" || \
-      opencode_gcp_bootstrap_fail "No se pudo descargar módulo: ${base_url%/}/$module_path"
-  done
+  opencode_gcp_fetch_remote_files "$base_url" "$target_root" "${OPENCODE_GCP_MODULES[@]}"
+  opencode_gcp_fetch_remote_files "$base_url" "$target_root" "${OPENCODE_GCP_CONFIG_FILES[@]}"
 }
 
 opencode_gcp_resolve_root() {

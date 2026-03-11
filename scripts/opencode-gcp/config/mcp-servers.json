@@ -1,0 +1,18 @@
+{
+  "chromeDevtools": {
+    "type": "local",
+    "command": ["npx", "-y", "chrome-devtools-mcp@latest"]
+  },
+  "finerio-docs": {
+    "type": "remote",
+    "url": "{{MCP_FINERIO_CONNECT_URL}}"
+  },
+  "pencil": {
+    "type": "local",
+    "command": [
+      "/Applications/Pencil.app/Contents/Resources/app.asar.unpacked/out/mcp-server-darwin-arm64",
+      "--app",
+      "desktop"
+    ]
+  }
+}

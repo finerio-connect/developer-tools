@@ -106,7 +106,7 @@ opencode_gcp_main() {
   opencode_gcp_write_gcp_env_files "$selected_region" "$force_all"
   opencode_gcp_write_profile_if_missing "$selected_region" "$force_all"
   opencode_gcp_write_opencode_env_if_missing
-  opencode_gcp_write_opencode_json_if_missing "$selected_region" "$force_opencode_json"
+  opencode_gcp_write_opencode_json "$selected_region" "$force_opencode_json"
   opencode_gcp_verify_project_access
 
   opencode_gcp_install_wrapper
