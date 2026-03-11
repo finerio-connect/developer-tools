@@ -14,6 +14,8 @@ OPENCODE_GCP_CONFIG_FILES=(
   "scripts/opencode-gcp/config/mcp-servers.json"
   "scripts/opencode-gcp/config/providers.json"
   "scripts/opencode-gcp/config/agents.json"
+  "scripts/opencode-gcp/config/tui.json"
+  "scripts/opencode-gcp/config/themes/finerio.json"
 )
 OPENCODE_GCP_REMOTE_BOOTSTRAP="false"
 OPENCODE_GCP_INSTALL_ROOT=""
