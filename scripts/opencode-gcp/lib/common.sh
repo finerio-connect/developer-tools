@@ -30,6 +30,10 @@ opencode_gcp_init_defaults() {
   DEFAULT_MCP_FINERIO_CONNECT_URL="${OPENCODE_GCP_FINERIO_CONNECT_MCP_URL:-https://docs.dev.finerioconnect.com/documentation/~gitbook/mcp}"
   DEFAULT_MCP_GITHUB_URL="${OPENCODE_GCP_GITHUB_MCP_URL:-https://api.githubcopilot.com/mcp/}"
 
+  # AWS SSO config
+  DEFAULT_AWS_PROFILE="${OPENCODE_GCP_AWS_PROFILE:-${AWS_DEFAULT_PROFILE:-default}}"
+  DEFAULT_AWS_REGION="${OPENCODE_GCP_AWS_REGION:-us-east-1}"
+
   MAPPED_PROJECT_KEYS=(
     "multiclient-dev"
     "enrichment-dev"

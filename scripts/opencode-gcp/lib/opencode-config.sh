@@ -53,6 +53,32 @@ opencode_gcp_build_opencode_json() {
   agents_json="$(cat "$config_dir/agents.json")" \
     || opencode_gcp_fail "No se pudo leer $config_dir/agents.json"
 
+  # Resolver promptFile -> prompt en agentes
+  local prompts_dir="$config_dir/prompts"
+  local agents_tmp filter_tmp
+  agents_tmp="$(mktemp)"
+  filter_tmp="$(mktemp)"
+  printf '%s\n' "$agents_json" > "$agents_tmp"
+
+  local jq_args=()
+  printf '.' > "$filter_tmp"
+  local prompt_files
+  prompt_files="$(jq -r 'to_entries[] | select(.value.promptFile) | "\(.key)\t\(.value.promptFile)"' "$agents_tmp")"
+  local idx=0
+  while IFS=$'\t' read -r agent_name prompt_file; do
+    [[ -z "$agent_name" ]] && continue
+    local prompt_path="$prompts_dir/$prompt_file"
+    [[ -f "$prompt_path" ]] || opencode_gcp_fail "No se encontró prompt: $prompt_path"
+    jq_args+=(--rawfile "p${idx}" "$prompt_path" --arg "n${idx}" "$agent_name")
+    printf ' | .[($n%s)] = (.[($n%s)] | del(.promptFile) + {prompt: $p%s})' "$idx" "$idx" "$idx" >> "$filter_tmp"
+    idx=$((idx + 1))
+  done <<< "$prompt_files"
+
+  if [[ ${#jq_args[@]} -gt 0 ]]; then
+    agents_json="$(jq "${jq_args[@]}" -f "$filter_tmp" "$agents_tmp")"
+  fi
+  rm -f "$agents_tmp" "$filter_tmp"
+
   # Sustituir placeholders en MCP servers
   mcp_json="$(opencode_gcp_substitute_placeholders "$mcp_json" \
     "MCP_BROWSER_PATH"        "$DEFAULT_MCP_BROWSER_PATH" \

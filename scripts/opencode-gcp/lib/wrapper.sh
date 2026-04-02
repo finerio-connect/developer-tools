@@ -84,6 +84,35 @@ check_auth() {
   fi
 }
 
+check_aws_sso() {
+  local aws_profile="${AWS_PROFILE:-${AWS_DEFAULT_PROFILE:-}}"
+
+  # Si no hay perfil AWS configurado, saltar verificación
+  if [[ -z "$aws_profile" ]]; then
+    return 0
+  fi
+
+  # Verificar que aws CLI esté disponible
+  if ! command -v aws >/dev/null 2>&1; then
+    warn "AWS CLI no está instalado. El MCP de CloudWatch no funcionará."
+    return 0
+  fi
+
+  # Verificar si la sesión SSO está activa intentando una llamada simple
+  if aws sts get-caller-identity --profile "$aws_profile" >/dev/null 2>&1; then
+    log "AWS SSO sesión activa (profile: $aws_profile)"
+    return 0
+  fi
+
+  # La sesión expiró o no existe, intentar login
+  warn "AWS SSO sesión no válida para profile '$aws_profile'. Iniciando login..."
+  if aws sso login --profile "$aws_profile"; then
+    log "AWS SSO login exitoso (profile: $aws_profile)"
+  else
+    warn "AWS SSO login falló. El MCP de CloudWatch podría no funcionar."
+  fi
+}
+
 print_plain_credentials_debug() {
   local debug_enabled="$1"
 
@@ -117,6 +146,7 @@ doctor() {
   fi
   activate_gcloud_configuration
   check_auth
+  check_aws_sso
   log "Doctor OK (project: $GOOGLE_CLOUD_PROJECT, region: $VERTEX_LOCATION)."
 }
 
@@ -132,6 +162,8 @@ VERTEX_LOCATION=$VERTEX_LOCATION
 GCLOUD_CONFIGURATION=${GCLOUD_CONFIGURATION:-}
 GOOGLE_APPLICATION_CREDENTIALS=${GOOGLE_APPLICATION_CREDENTIALS:-}
 OPENCODE_DEFAULT_MODEL=${OPENCODE_DEFAULT_MODEL:-}
+AWS_PROFILE=${AWS_PROFILE:-${AWS_DEFAULT_PROFILE:-}}
+AWS_REGION=${AWS_REGION:-us-east-1}
 CFG
 }
 
@@ -188,8 +220,11 @@ main() {
 
   activate_gcloud_configuration
   check_auth
+  check_aws_sso
   print_plain_credentials_debug "$debug_credentials"
 
+  log "AWS_PROFILE=${AWS_PROFILE:-${AWS_DEFAULT_PROFILE:-(no configurado)}}"
+  log "AWS_REGION=${AWS_REGION:-us-east-1}"
   log "Iniciando OpenCode con credenciales del proyecto '$GOOGLE_CLOUD_PROJECT' ..."
   if [[ ${#opencode_args[@]} -eq 0 ]]; then
     exec opencode

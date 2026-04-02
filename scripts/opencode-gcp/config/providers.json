@@ -17,9 +17,9 @@
           "output": 65536
         }
       },
-      " gemini-3.1-flash-lite-preview ": {
-        "name": "Gemini 3.1 Flash Lite",
-        "id": " gemini-3.1-flash-lite-preview ",
+      "finerio/gemini-3-fash-preview": {
+        "name": "Gemini 3.1 Flash",
+        "id": "gemini-3-flash-preview",
         "attachment": true,
         "tool_call": true,
         "limit": {
@@ -27,9 +27,9 @@
           "output": 65536
         }
       },
-      "finerio/gemini-3-flash": {
-        "name": "Gemini 3 Flash",
-        "id": "gemini-3-flash-preview",
+      "finerio/gemini-3.1-flash-lite-preview": {
+        "name": "Gemini 3.1 Flash Lite",
+        "id": "gemini-3.1-flash-lite-preview",
         "attachment": true,
         "tool_call": true,
         "limit": {
