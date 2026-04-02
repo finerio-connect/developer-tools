@@ -98,7 +98,7 @@ opencode_gcp_build_opencode_json() {
     --argjson mcp       "$mcp_json" \
     --argjson provider  "$providers_json" \
     --argjson agent     "$agents_json" \
-    '$base + {"mcp": $mcp, "provider": $provider, "agent": $agent}'
+    '$base + {"mcp": $mcp, "provider": $provider, "agent": (($base.agent // {}) + $agent)}'
 }
 
 opencode_gcp_install_themes() {

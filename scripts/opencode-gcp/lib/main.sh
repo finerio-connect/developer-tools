@@ -1,5 +1,18 @@
 #!/usr/bin/env bash
 
+opencode_gcp_install_rtk() {
+  if command -v rtk >/dev/null 2>&1; then
+    opencode_gcp_log "RTK ya está instalado en: $(command -v rtk)"
+    return 0
+  fi
+
+  opencode_gcp_log "Instalando RTK ..."
+  curl -fsSL https://raw.githubusercontent.com/rtk-ai/rtk/refs/heads/master/install.sh | sh
+
+  command -v rtk >/dev/null 2>&1 || opencode_gcp_warn "RTK no quedó disponible en PATH tras la instalación. Reinicia tu terminal o agrega su ruta al PATH."
+  opencode_gcp_log "RTK instalado en: $(command -v rtk)"
+}
+
 opencode_gcp_install_opencode() {
   local opencode_bin=""
 
@@ -24,38 +37,36 @@ opencode_gcp_install_opencode() {
   opencode_gcp_log "OpenCode instalado en: $(command -v opencode)"
 }
 
+opencode_gcp_update_opencode() {
+  opencode_gcp_log "Actualizando OpenCode desde $OPENCODE_INSTALL_URL ..."
+  curl -fsSL "$OPENCODE_INSTALL_URL" | bash
+
+  command -v opencode >/dev/null 2>&1 || opencode_gcp_fail "OpenCode no quedó disponible en PATH tras la actualización."
+  opencode_gcp_log "OpenCode actualizado en: $(command -v opencode)"
+}
+
 opencode_gcp_print_summary() {
-  cat <<SUMMARY
-
-Instalación terminada.
-
-Comandos principales:
-  opencode-gcp --doctor
-  opencode-gcp --show-config
-  opencode-gcp
-
-Perfil único:
-  $PROFILE_FILE
-
-Configuración única OpenCode:
-  $OPENCODE_ENV_FILE
-  $OPENCODE_JSON_FILE
-
-Estructura estándar de credenciales:
-  $CREDENTIALS_PROJECTS_DIR/<mapped-project>/finerio-key.json
-  $CREDENTIALS_PROJECTS_DIR/projects-map.txt
-  $ACTIVE_KEY_PATH   (ruta activa usada por opencode-gcp)
-
-Entornos para use-gcp:
-  $GCP_ENV_DIR/<mapped-project>.env
-
-Módulo shell:
-  $SHELL_MODULE_FILE
-
-Este setup usa credenciales de '$FIXED_GCP_PROJECT' para cualquier uso de opencode-gcp.
-Para activar un key.json, cópialo a:
-  $ACTIVE_KEY_PATH
-SUMMARY
+  printf "\n${_C_BOLD}${_C_GREEN}Instalación terminada.${_C_RESET}\n\n"
+  printf "${_C_BOLD}Comandos principales:${_C_RESET}\n"
+  printf "  ${_C_CYAN}opencode-gcp --doctor${_C_RESET}\n"
+  printf "  ${_C_CYAN}opencode-gcp --show-config${_C_RESET}\n"
+  printf "  ${_C_CYAN}opencode-gcp${_C_RESET}\n\n"
+  printf "${_C_BOLD}Perfil único:${_C_RESET}\n"
+  printf "  ${_C_CYAN}%s${_C_RESET}\n\n" "$PROFILE_FILE"
+  printf "${_C_BOLD}Configuración única OpenCode:${_C_RESET}\n"
+  printf "  ${_C_CYAN}%s${_C_RESET}\n" "$OPENCODE_ENV_FILE"
+  printf "  ${_C_CYAN}%s${_C_RESET}\n\n" "$OPENCODE_JSON_FILE"
+  printf "${_C_BOLD}Estructura estándar de credenciales:${_C_RESET}\n"
+  printf "  ${_C_CYAN}%s/<mapped-project>/finerio-key.json${_C_RESET}\n" "$CREDENTIALS_PROJECTS_DIR"
+  printf "  ${_C_CYAN}%s/projects-map.txt${_C_RESET}\n" "$CREDENTIALS_PROJECTS_DIR"
+  printf "  ${_C_CYAN}%s${_C_RESET}   (ruta activa usada por opencode-gcp)\n\n" "$ACTIVE_KEY_PATH"
+  printf "${_C_BOLD}Entornos para use-gcp:${_C_RESET}\n"
+  printf "  ${_C_CYAN}%s/<mapped-project>.env${_C_RESET}\n\n" "$GCP_ENV_DIR"
+  printf "${_C_BOLD}Módulo shell:${_C_RESET}\n"
+  printf "  ${_C_CYAN}%s${_C_RESET}\n\n" "$SHELL_MODULE_FILE"
+  printf "Este setup usa credenciales de ${_C_BOLD}'%s'${_C_RESET} para cualquier uso de opencode-gcp.\n" "$FIXED_GCP_PROJECT"
+  printf "Para activar un key.json, cópialo a:\n"
+  printf "  ${_C_CYAN}%s${_C_RESET}\n" "$ACTIVE_KEY_PATH"
 
   opencode_gcp_print_shell_hook_hint
 }
@@ -67,6 +78,7 @@ opencode_gcp_main() {
   local force_all="false"
   local force_opencode_config="false"
   local force_opencode_json="false"
+  local update_opencode="false"
 
   while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -85,6 +97,9 @@ opencode_gcp_main() {
       --force-opencode-config)
         force_opencode_config="true"
         ;;
+      --update)
+        update_opencode="true"
+        ;;
       *)
         opencode_gcp_fail "Opción no soportada: $1 (usa --help)"
         ;;
@@ -101,7 +116,12 @@ opencode_gcp_main() {
     force_opencode_json="true"
   fi
 
-  opencode_gcp_install_opencode
+  opencode_gcp_install_rtk
+  if [[ "$update_opencode" == "true" ]]; then
+    opencode_gcp_update_opencode
+  else
+    opencode_gcp_install_opencode
+  fi
   opencode_gcp_ensure_credentials_layout
   opencode_gcp_write_gcp_env_files "$selected_region" "$force_all"
   opencode_gcp_write_profile_if_missing "$selected_region" "$force_all"

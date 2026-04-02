@@ -10,5 +10,15 @@
   "clickup": {
     "type": "local",
     "command": ["npx", "-y", "mcp-remote", "https://mcp.clickup.com/mcp"]
+  },
+  "cloudwatch": {
+    "type": "local",
+    "command": ["uvx", "awslabs.cloudwatch-mcp-server@latest"],
+    "enabled": false,
+    "timeout": 60000,
+    "environment": {
+      "AWS_PROFILE": "dev-us-east-1",
+      "FASTMCP_LOG_LEVEL": "ERROR"
+    }
   }
 }

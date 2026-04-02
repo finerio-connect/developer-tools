@@ -59,16 +59,27 @@ opencode_gcp_init_defaults() {
   )
 }
 
+if [[ -t 2 ]] && [[ -t 1 ]]; then
+  _C_RESET='\033[0m'
+  _C_BOLD='\033[1m'
+  _C_GREEN='\033[0;32m'
+  _C_YELLOW='\033[0;33m'
+  _C_RED='\033[0;31m'
+  _C_CYAN='\033[0;36m'
+else
+  _C_RESET='' _C_BOLD='' _C_GREEN='' _C_YELLOW='' _C_RED='' _C_CYAN=''
+fi
+
 opencode_gcp_log() {
-  printf "[INFO] %s\n" "$*"
+  printf "${_C_GREEN}[INFO]${_C_RESET} %s\n" "$*"
 }
 
 opencode_gcp_warn() {
-  printf "[WARN] %s\n" "$*" >&2
+  printf "${_C_YELLOW}[WARN]${_C_RESET} %s\n" "$*" >&2
 }
 
 opencode_gcp_fail() {
-  printf "[ERROR] %s\n" "$*" >&2
+  printf "${_C_RED}[ERROR]${_C_RESET} %s\n" "$*" >&2
   exit 1
 }
 
@@ -77,7 +88,7 @@ opencode_gcp_usage() {
 Instalador de OpenCode + credenciales GCP (modular, proyecto fijo configurable).
 
 Uso:
-  ./install-opencode-gcp.sh [--region REGION] [--force|--force-opencode-config]
+  ./install-opencode-gcp.sh [--region REGION] [--force|--force-opencode-config] [--update]
   ./install-opencode-gcp.sh --help
 
 Opciones:
@@ -85,6 +96,7 @@ Opciones:
   --force    Reescribe perfil/envs/módulo shell y opencode.json (full)
   --force-opencode-config
              Reescribe solo opencode.json (con backup)
+  --update   Actualiza OpenCode a la última versión
   --help     Muestra esta ayuda
 
 Ejemplos:

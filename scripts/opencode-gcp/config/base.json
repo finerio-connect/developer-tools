@@ -1,5 +1,9 @@
 {
   "$schema": "https://opencode.ai/config.json",
   "model": "finerio/gemini-3.1-pro",
-  "plugin": ["opencode-gemini-auth@latest"]
+  "plugin": [
+    "opencode-gemini-auth@latest",
+    "@franlol/opencode-md-table-formatter@latest",
+    "@mohak34/opencode-notifier@latest"
+  ]
 }
