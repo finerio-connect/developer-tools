@@ -16,10 +16,6 @@ OPENCODE_GCP_CONFIG_FILES=(
   "scripts/opencode-gcp/config/agents.json"
   "scripts/opencode-gcp/config/tui.json"
   "scripts/opencode-gcp/config/themes/finerio.json"
-  "scripts/opencode-gcp/config/prompts/scrapper.md"
-  "scripts/opencode-gcp/config/prompts/design.md"
-  "scripts/opencode-gcp/config/prompts/product.md"
-  "scripts/opencode-gcp/config/prompts/crm.md"
 )
 OPENCODE_GCP_REMOTE_BOOTSTRAP="false"
 OPENCODE_GCP_INSTALL_ROOT=""
@@ -66,6 +62,25 @@ opencode_gcp_fetch_remote_files() {
   done
 }
 
+opencode_gcp_fetch_prompt_files() {
+  local base_url="$1"
+  local target_root="$2"
+  local agents_file="$target_root/scripts/opencode-gcp/config/agents.json"
+
+  [[ -f "$agents_file" ]] || return 0
+
+  local prompt_file
+  local prompt_files=()
+  while IFS= read -r prompt_file; do
+    [[ -n "$prompt_file" ]] || continue
+    prompt_files+=("scripts/opencode-gcp/config/prompts/$prompt_file")
+  done < <(jq -r '[.[] | .promptFile // empty] | unique[]' "$agents_file" 2>/dev/null)
+
+  if [[ ${#prompt_files[@]} -gt 0 ]]; then
+    opencode_gcp_fetch_remote_files "$base_url" "$target_root" "${prompt_files[@]}"
+  fi
+}
+
 opencode_gcp_fetch_modules() {
   local base_url="$1"
   local target_root="$2"
@@ -74,6 +89,7 @@ opencode_gcp_fetch_modules() {
 
   opencode_gcp_fetch_remote_files "$base_url" "$target_root" "${OPENCODE_GCP_MODULES[@]}"
   opencode_gcp_fetch_remote_files "$base_url" "$target_root" "${OPENCODE_GCP_CONFIG_FILES[@]}"
+  opencode_gcp_fetch_prompt_files "$base_url" "$target_root"
 }
 
 opencode_gcp_resolve_root() {
