@@ -16,6 +16,10 @@ OPENCODE_GCP_CONFIG_FILES=(
   "scripts/opencode-gcp/config/agents.json"
   "scripts/opencode-gcp/config/tui.json"
   "scripts/opencode-gcp/config/themes/finerio.json"
+  "scripts/opencode-gcp/config/prompts/scrapper.md"
+  "scripts/opencode-gcp/config/prompts/design.md"
+  "scripts/opencode-gcp/config/prompts/product.md"
+  "scripts/opencode-gcp/config/prompts/crm.md"
 )
 OPENCODE_GCP_REMOTE_BOOTSTRAP="false"
 OPENCODE_GCP_INSTALL_ROOT=""
